@@ -44,8 +44,8 @@ try:
     # Crear la conexión
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Leer la hoja maestra
-    df_plan = conn.read(worksheet="Proyecto_FINISHER_703_Panama", ttl=10)
+   # Leer la hoja maestra (lee la primera pestaña por defecto)
+    df_plan = conn.read(ttl=10)
     
     st.success("✅ ¡Conexión exitosa a tu base de datos!")
     
