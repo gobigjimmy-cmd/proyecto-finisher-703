@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS personalizados para simular entorno de alta gerencia
+# Estilos CSS personalizados
 st.markdown("""
     <style>
     .main-title { font-size: 42px; font-weight: bold; color: #005088; text-align: center; margin-bottom: 5px; }
@@ -28,13 +28,11 @@ st.markdown('<div class="subtitle">"No entrenamos para sobrevivir al IRONMAN. En
 
 # Conexión con Google Sheets
 try:
+    # Iniciar conexión
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Forzamos la lectura directa usando la URL de tus Secrets y tu pestaña real
-    df_plan = conn.read(
-        spreadsheet=st.secrets["connections"]["gsheets"]["url"],
-        worksheet="Proyecto_FINISHER_703_Panama"
-    )
+    # Leer la hoja directamente (toma la URL exacta de los Secrets con el gid incluido)
+    df_plan = conn.read(ttl=10)
     
     # Asegurar formato de fecha
     df_plan['Fecha_Inicio'] = pd.to_datetime(df_plan['Fecha_Inicio'])
@@ -53,7 +51,7 @@ try:
         horas_objetivo = semana_info['Volumen_Objetivo_Hrs']
         kpi_semana = semana_info['KPI_Clave_Semana']
     else:
-        # Failsafe por si estamos fuera de rango antes de iniciar el plan
+        # Failsafe
         id_semana = 1
         semana_info = df_plan.iloc[0]
         fase_actual = semana_info['Fase']
@@ -75,12 +73,11 @@ try:
         """, unsafe_allow_html=True)
         
     with col2:
-        # Simulación de KPI de Consistencia
         st.markdown("""
             <div class="metric-box">
                 <div class="metric-title">📈 CONSISTENCIA MENSUAL</div>
                 <div class="metric-value">100% <span style="color:#11caa0; font-size:18px;">▲</span></div>
-                <p style="font-size:12px; margin:0; color:#475569;">Objetivo: >90% (Estableciendo Línea Base)</p>
+                <p style="font-size:12px; margin:0; color:#475569;">Objetivo: >90%</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -89,35 +86,31 @@ try:
             <div class="metric-box">
                 <div class="metric-title">⏱️ VOLUMEN PLANIFICADO</div>
                 <div class="metric-value">{horas_objetivo} Hrs</div>
-                <p style="font-size:12px; margin:0; color:#475569;">Meta acumulada de la semana</p>
+                <p style="font-size:12px; margin:0; color:#475569;">Meta de la semana</p>
             </div>
         """, unsafe_allow_html=True)
         
     with col4:
-        # Semáforo de salud preventivo
         st.markdown("""
             <div class="metric-box">
                 <div class="metric-title">🩺 ALERTAS DE SALUD</div>
                 <div class="metric-value" style="color:#11caa0;">0 <span style="font-size:16px; font-weight:normal; color:#475569;">Molestias</span></div>
-                <p style="font-size:12px; margin:0; color:#11caa0;">🟢 Zona Segura (L5-S1 & Codo OK)</p>
+                <p style="font-size:12px; margin:0; color:#11caa0;">🟢 L5-S1 & Codo OK</p>
             </div>
         """, unsafe_allow_html=True)
 
     # --- OBJETIVOS E HITOS DE LA SEMANA ---
     st.markdown("---")
     st.markdown(f"### 🎯 Plan de Trabajo Semanal: {enfoque_actual}")
-    
     st.info(f"**📌 Hito Crítico de la Semana (KPI):** {kpi_semana}")
 
     # --- TABLA DEL PLAN MAESTRO COMPLETO ---
     st.markdown("---")
     with st.expander("🔍 Ver Plan Maestro Completo de 34 Semanas (Ruta Crítica)"):
-        # Formatear la fecha para mostrarla limpia
         df_mostrar = df_plan.copy()
         df_mostrar['Fecha_Inicio'] = df_mostrar['Fecha_Inicio'].dt.strftime('%Y-%m-%d')
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error("⚠️ Error de conexión con la base de datos de Google Sheets.")
-    st.write("Por favor, verifica que el enlace en 'Secrets' esté bien configurado y que la hoja tenga permisos de lectura.")
+    st.error("⚠️ Error de conexión.")
     st.exception(e)
