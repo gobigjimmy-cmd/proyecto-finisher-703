@@ -31,8 +31,9 @@ try:
     # Iniciar conexión
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Leer la hoja directamente (toma la URL exacta de los Secrets con el gid incluido)
-    df_plan = conn.read(ttl=10)
+    # Leer la hoja extrayendo e inyectando la URL explícitamente desde los Secrets
+    url_secreta = st.secrets["connections"]["gsheets"]["url"]
+    df_plan = conn.read(spreadsheet=url_secreta, ttl=10)
     
     # Asegurar formato de fecha
     df_plan['Fecha_Inicio'] = pd.to_datetime(df_plan['Fecha_Inicio'])
