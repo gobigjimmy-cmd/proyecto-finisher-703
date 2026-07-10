@@ -1,4 +1,6 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 import datetime
 import pytz
 
@@ -12,7 +14,7 @@ st.set_page_config(
 # 2. Configuración de Zona Horaria (Colombia) y Fechas
 colombia_tz = pytz.timezone('America/Bogota')
 fecha_actual = datetime.datetime.now(colombia_tz)
-fecha_carrera = datetime.datetime(2027, 2, 28, 6, 0, 0, tzinfo=colombia_tz) # Asumimos inicio a las 6:00 AM
+fecha_carrera = datetime.datetime(2027, 2, 28, 6, 0, 0, tzinfo=colombia_tz)
 
 # Cálculo de la cuenta regresiva
 tiempo_restante = fecha_carrera - fecha_actual
@@ -37,10 +39,26 @@ with col3:
 
 st.divider()
 
-# 5. Estructura de los siguientes módulos (Marcadores de posición)
-st.subheader("🎯 Tu Hito Semanal")
-st.info("Aquí conectaremos con Google Sheets para mostrar tu KPI de la semana actual.")
+# 5. Conexión a Google Sheets
+try:
+    # Crear la conexión
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    # Leer la hoja maestra
+    df_plan = conn.read(worksheet="Proyecto_FINISHER_703_Panama", ttl=10)
+    
+    st.success("✅ ¡Conexión exitosa a tu base de datos!")
+    
+    # 6. Mostrar el Hito Semanal (Ejemplo visual rápido)
+    st.subheader("🎯 Tu Plan Maestro")
+    st.dataframe(df_plan)
 
+except Exception as e:
+    st.error(f"Error técnico conectando a Google Sheets: {e}")
+
+st.divider()
+
+# 7. Estructura de los siguientes módulos (Para construir en la V2)
 col4, col5 = st.columns(2)
 
 with col4:
@@ -50,8 +68,3 @@ with col4:
 with col5:
     st.subheader("⚠️ Radar de Salud")
     st.error("Gráfico de molestias L5-S1 y Codo en construcción...")
-
-st.divider()
-
-st.subheader("📝 Registrar Entrenamiento de Hoy")
-st.button("Abrir Formulario de Registro")
