@@ -1,2 +1,4 @@
-st-theme
+streamlit
+pytz
+pandas
 st-gsheets-connection
