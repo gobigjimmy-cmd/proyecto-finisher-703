@@ -1,30 +1,57 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-import pandas as pd
+import datetime
+import pytz
 
-# Configuración de página
-st.set_page_config(page_title="Proyecto FINISHER 70.3", layout="wide")
-st.title("PROYECTO FINISHER 70.3")
+# 1. Configuración principal de la aplicación
+st.set_page_config(
+    page_title="FINISHER 70.3 Panamá",
+    page_icon="🇵🇦",
+    layout="wide"
+)
 
-# URL Limpia (sin parámetros adicionales ni #gid)
-URL_HOJA = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0"
+# 2. Configuración de Zona Horaria (Colombia) y Fechas
+colombia_tz = pytz.timezone('America/Bogota')
+fecha_actual = datetime.datetime.now(colombia_tz)
+fecha_carrera = datetime.datetime(2027, 2, 28, 6, 0, 0, tzinfo=colombia_tz) # Asumimos inicio a las 6:00 AM
 
-try:
-    # Crear la conexión
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    
-    # Leer la hoja (cambia 'Hoja1' si decidiste renombrarla así en Google Sheets)
-    df_plan = conn.read(spreadsheet=URL_HOJA, worksheet="Hoja1", ttl=10)
-    
-    st.success("¡Conexión exitosa!")
-    st.dataframe(df_plan)
+# Cálculo de la cuenta regresiva
+tiempo_restante = fecha_carrera - fecha_actual
+dias_restantes = tiempo_restante.days
 
-except Exception as e:
-    st.error(f"Error técnico: {e}")
-    st.write("---")
-    st.write("### Pasos para arreglarlo:")
-    st.markdown("""
-    1. Asegúrate de que la pestaña en tu Google Sheet se llame **exactamente** `Hoja1` (sin espacios extra).
-    2. Verifica que el archivo esté compartido: **Compartir** -> **Cualquier persona con el enlace** -> **Lector**.
-    3. Si el error persiste, el mensaje de arriba nos dará la clave final.
-    """)
+# 3. Interfaz de Usuario: Cabecera
+st.title("🏃‍♂️ Proyecto FINISHER 70.3 - Panamá 2027")
+st.markdown("*No entrenamos para sobrevivir al IRONMAN. Entrenamos para disfrutar el camino hasta la meta.*")
+st.divider()
+
+# 4. Panel Superior: Reloj, Fecha y Cuenta Regresiva
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(label="📅 Fecha Actual (Bogotá)", value=fecha_actual.strftime("%Y-%m-%d"))
+
+with col2:
+    st.metric(label="⏰ Hora Actual", value=fecha_actual.strftime("%I:%M %p"))
+
+with col3:
+    st.metric(label="⏳ Días para la meta", value=f"{dias_restantes} días", delta="-1 día más cerca", delta_color="inverse")
+
+st.divider()
+
+# 5. Estructura de los siguientes módulos (Marcadores de posición)
+st.subheader("🎯 Tu Hito Semanal")
+st.info("Aquí conectaremos con Google Sheets para mostrar tu KPI de la semana actual.")
+
+col4, col5 = st.columns(2)
+
+with col4:
+    st.subheader("📊 Cumplimiento de Volumen")
+    st.warning("Semáforos de cumplimiento en construcción...")
+
+with col5:
+    st.subheader("⚠️ Radar de Salud")
+    st.error("Gráfico de molestias L5-S1 y Codo en construcción...")
+
+st.divider()
+
+st.subheader("📝 Registrar Entrenamiento de Hoy")
+st.button("Abrir Formulario de Registro")
