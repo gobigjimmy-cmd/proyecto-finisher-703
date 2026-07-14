@@ -102,7 +102,6 @@ df_registro['Dolor_Lumbar'] = pd.to_numeric(df_registro['Dolor_Lumbar'], errors=
 df_registro['Dolor_Codo'] = pd.to_numeric(df_registro['Dolor_Codo'], errors='coerce').fillna(0)
 
 df_semana_actual = df_registro[df_registro['ID_Semana'] == id_semana_actual]
-
 minutos_totales = df_semana_actual['Duración_Real_Min'].sum()
 horas_totales = minutos_totales / 60.0
 
@@ -144,7 +143,7 @@ with col5:
 
 st.divider()
 
-# 7. Módulos V3.0: Métricas Corporales y Calendario de Restricciones
+# 7. Módulos V3.1: Métricas Corporales Completas y Restricciones
 col6, col7 = st.columns(2)
 
 with col6:
@@ -152,20 +151,27 @@ with col6:
     df_metricas = df_metricas.dropna(subset=['Fecha'])
     if not df_metricas.empty:
         df_metricas['Fecha'] = pd.to_datetime(df_metricas['Fecha'], format='%d/%m/%Y', errors='coerce')
+        # Convertimos todas las columnas relevantes a formato numérico
+        df_metricas['Peso_Kg'] = pd.to_numeric(df_metricas['Peso_Kg'], errors='coerce')
+        df_metricas['Porcentaje_Grasa'] = pd.to_numeric(df_metricas['Porcentaje_Grasa'], errors='coerce')
+        df_metricas['Perimetro_Cintura_Cm'] = pd.to_numeric(df_metricas['Perimetro_Cintura_Cm'], errors='coerce')
         df_metricas['FC_Reposo'] = pd.to_numeric(df_metricas['FC_Reposo'], errors='coerce')
         
-        # Gráfica de Frecuencia Cardíaca
-        df_metricas_chart = df_metricas[['Fecha', 'FC_Reposo']].set_index('Fecha').dropna()
-        st.write("**Evolución Frecuencia Cardíaca en Reposo (bpm)**")
+        # Gráfica combinada de las 4 variables
+        df_metricas_chart = df_metricas[['Fecha', 'Peso_Kg', 'Porcentaje_Grasa', 'Perimetro_Cintura_Cm', 'FC_Reposo']].set_index('Fecha').dropna()
+        
+        st.write("**Evolución de Variables Físicas**")
         if not df_metricas_chart.empty:
-            st.line_chart(df_metricas_chart, color=["#00FF00"])
+            # Mostramos las 4 líneas al mismo tiempo
+            st.line_chart(df_metricas_chart)
         else:
-            st.info("Agrega datos numéricos a tu FC_Reposo para ver la tendencia.")
+            st.info("Agrega datos numéricos a todas las columnas para ver la tendencia.")
             
-        with st.expander("Ver tabla completa de medidas"):
-            df_metricas_show = df_metricas.copy()
-            df_metricas_show['Fecha'] = df_metricas_show['Fecha'].dt.strftime('%d/%m/%Y')
-            st.dataframe(df_metricas_show)
+        # Tabla siempre visible (sin expander) para lectura directa en móvil
+        st.write("**Detalle Numérico Fijo:**")
+        df_metricas_show = df_metricas.copy()
+        df_metricas_show['Fecha'] = df_metricas_show['Fecha'].dt.strftime('%d/%m/%Y')
+        st.dataframe(df_metricas_show, use_container_width=True)
     else:
         st.info("Aún no has registrado métricas corporales.")
 
