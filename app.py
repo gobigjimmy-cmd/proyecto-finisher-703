@@ -35,22 +35,25 @@ with col3:
 
 st.divider()
 
-# 4. Conexión a Google Sheets (CON CHALECO ANTIBALAS)
+# 4. Conexión a Google Sheets (Usando GID directo para bypass de nombre)
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 try:
+    # Lee la primera hoja por defecto (Tu plan maestro)
     df_plan = conn.read(ttl=10)
 except Exception as e:
     st.error(f"❌ Error leyendo la hoja principal del Plan. Detalle: {e}")
     st.stop()
 
 try:
-    df_registro = conn.read(worksheet="Registro_Diario", ttl=10)
+    # BYPASS: Usamos el enlace directo con el GID exacto de tu hoja #2
+    url_registro = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0/edit?gid=1045035074"
+    df_registro = conn.read(spreadsheet=url_registro, ttl=10)
 except Exception as e:
-    st.error(f"❌ Error leyendo el Registro Diario. Verifica que la pestaña se llame EXACTAMENTE 'Registro_Diario' sin espacios. Detalle: {e}")
+    st.error(f"❌ Error leyendo el Registro Diario con GID directo. Detalle: {e}")
     st.stop()
 
-# 5. Lógica de Datos (Solo se ejecuta si las conexiones fueron exitosas)
+# 5. Lógica de Datos
 df_plan['Fecha_Inicio'] = pd.to_datetime(df_plan['Fecha_Inicio'], format='%d/%m/%Y', errors='coerce')
 semanas_iniciadas = df_plan[df_plan['Fecha_Inicio'] <= fecha_actual]
 
