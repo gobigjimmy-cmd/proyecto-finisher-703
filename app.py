@@ -14,7 +14,6 @@ st.set_page_config(
 # 2. Configuración de Zona Horaria (Colombia) y Fechas
 colombia_tz = pytz.timezone('America/Bogota')
 fecha_actual_completa = datetime.datetime.now(colombia_tz)
-# Creamos una versión sin zona horaria para poder compararla con las fechas de Excel
 fecha_actual = fecha_actual_completa.replace(tzinfo=None) 
 fecha_carrera = datetime.datetime(2027, 2, 28, 6, 0, 0)
 
@@ -41,55 +40,107 @@ with col3:
 
 st.divider()
 
-# 5. Conexión a Google Sheets y Lógica de Fechas
+# 5. Conexión a Google Sheets y Lógica de Datos
 try:
     # Crear la conexión
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Leer la hoja maestra
+    # Leer las hojas (La primera por defecto para el plan, y nombramos la de registro)
     df_plan = conn.read(ttl=10)
+    df_registro = conn.read(worksheet="Registro_Diario", ttl=10)
     
-    # CONVERSIÓN DE FECHAS: Le decimos a Pandas que lea en formato Día/Mes/Año[cite: 1]
+    # Formateo de fechas y limpieza de datos vacíos en el Plan
     df_plan['Fecha_Inicio'] = pd.to_datetime(df_plan['Fecha_Inicio'], format='%d/%m/%Y', errors='coerce')
     
-    # EXTRAER LA SEMANA ACTUAL[cite: 1]
-    # Filtramos las semanas que ya empezaron (Fecha_Inicio <= fecha_actual)
+    # Identificar la semana actual
     semanas_iniciadas = df_plan[df_plan['Fecha_Inicio'] <= fecha_actual]
     
     if not semanas_iniciadas.empty:
-        # La semana actual es la última de esa lista
         semana_actual_data = semanas_iniciadas.iloc[-1]
+        id_semana_actual = semana_actual_data['ID_Semana']
         hito_actual = semana_actual_data['KPI_Clave_Semana']
         fase_actual = semana_actual_data['Fase']
         enfoque_actual = semana_actual_data['Enfoque_Semana']
+        volumen_objetivo_hrs = float(semana_actual_data['Volumen_Objetivo_Hrs'])
     else:
+        id_semana_actual = 0
         hito_actual = "El plan aún no ha comenzado."
         fase_actual = "-"
         enfoque_actual = "-"
+        volumen_objetivo_hrs = 0.0
 
-    # 6. Mostrar el Hito Semanal Automatizado
+    # Mostrar el Hito Semanal
     st.subheader("🎯 Tu Hito Semanal")
     st.info(f"**Fase:** {fase_actual} | **Enfoque:** {enfoque_actual}")
     st.success(f"**Misión de esta semana:** {hito_actual}")
     
     with st.expander("Ver el plan maestro completo"):
-        # Mostramos el dataframe pero volvemos a poner la fecha en texto para que se vea bonita
         df_mostrar = df_plan.copy()
         df_mostrar['Fecha_Inicio'] = df_mostrar['Fecha_Inicio'].dt.strftime('%d/%m/%Y')
         st.dataframe(df_mostrar)
 
+    st.divider()
+
+    # --- PROCESAMIENTO DE LA VERSIÓN 2.0 (REGISTRO Y SALUD) ---
+    
+    # Limpiar y preparar los datos del registro diario
+    df_registro = df_registro.dropna(subset=['Fecha']) # Elimina filas vacías
+    df_registro['Fecha'] = pd.to_datetime(df_registro['Fecha'], format='%d/%m/%Y', errors='coerce')
+    df_registro['Duración_Real_Min'] = pd.to_numeric(df_registro['Duración_Real_Min'], errors='coerce').fillna(0)
+    df_registro['Dolor_Lumbar'] = pd.to_numeric(df_registro['Dolor_Lumbar'], errors='coerce').fillna(0)
+    df_registro['Dolor_Codo'] = pd.to_numeric(df_registro['Dolor_Codo'], errors='coerce').fillna(0)
+    
+    # Filtrar solo los entrenamientos de la semana actual
+    df_semana_actual = df_registro[df_registro['ID_Semana'] == id_semana_actual]
+    
+    # Calcular horas reales sumando los minutos y dividiendo
+    minutos_totales = df_semana_actual['Duración_Real_Min'].sum()
+    horas_totales = minutos_totales / 60.0
+    
+    # Calcular el porcentaje de cumplimiento
+    if volumen_objetivo_hrs > 0:
+        porcentaje_cumplimiento = (horas_totales / volumen_objetivo_hrs) * 100
+    else:
+        porcentaje_cumplimiento = 0.0
+
+    # Desplegar los Módulos Visuales V2.0
+    col4, col5 = st.columns(2)
+
+    with col4:
+        st.subheader("📊 Cumplimiento de Volumen")
+        st.write(f"**Objetivo de la semana:** {volumen_objetivo_hrs:.1f} hrs")
+        st.write(f"**Realizado hasta hoy:** {horas_totales:.1f} hrs")
+        
+        # Lógica de Semáforos
+        if porcentaje_cumplimiento >= 90:
+            st.success(f"🟢 Excelente ritmo ({porcentaje_cumplimiento:.0f}%). Vas alineado al KPI de éxito.")
+        elif porcentaje_cumplimiento >= 70:
+            st.warning(f"🟠 Ritmo medio ({porcentaje_cumplimiento:.0f}%). Revisa tu agenda para completar el volumen.")
+        else:
+            st.error(f"🔴 Ritmo bajo ({porcentaje_cumplimiento:.0f}%). ¡Es hora de ajustar el plan o recuperar sesiones!")
+            
+        # Barra de progreso visual (se bloquea en 100% / 1.0 para que no falle si haces de más)
+        st.progress(min(porcentaje_cumplimiento / 100.0, 1.0))
+
+    with col5:
+        st.subheader("⚠️ Radar de Salud")
+        if not df_registro.empty:
+            # Preparar la gráfica de molestias
+            df_chart = df_registro[['Fecha', 'Dolor_Lumbar', 'Dolor_Codo']].set_index('Fecha')
+            st.line_chart(df_chart, color=["#FF0000", "#FFA500"])
+            
+            # Detectar el último registro de salud para alertas preventivas
+            ultimo_lumbar = df_registro.iloc[-1]['Dolor_Lumbar']
+            ultimo_codo = df_registro.iloc[-1]['Dolor_Codo']
+            
+            if ultimo_lumbar >= 3:
+                st.error(f"🚨 Alerta L5-S1: El último registro de dolor lumbar fue de {ultimo_lumbar}. PRIORIDAD: Movilidad y técnica.")
+            elif ultimo_codo >= 3:
+                st.error(f"🚨 Alerta Epicondilitis: El dolor de codo está en {ultimo_codo}. Vigilar vibraciones en la bici y agarre al nadar.")
+            else:
+                st.success("✅ Sistema físico en verde: Sin molestias preocupantes.")
+        else:
+            st.info("No hay datos de salud registrados aún.")
+
 except Exception as e:
     st.error(f"Error técnico conectando a Google Sheets: {e}")
-
-st.divider()
-
-# 7. Estructura de los siguientes módulos
-col4, col5 = st.columns(2)
-
-with col4:
-    st.subheader("📊 Cumplimiento de Volumen")
-    st.warning("Semáforos de cumplimiento en construcción...")
-
-with col5:
-    st.subheader("⚠️ Radar de Salud")
-    st.error("Gráfico de molestias L5-S1 y Codo en construcción...")
