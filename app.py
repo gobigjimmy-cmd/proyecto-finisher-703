@@ -35,25 +35,37 @@ with col3:
 
 st.divider()
 
-# 4. Conexión a Google Sheets (Usando GID directo para bypass de nombre)
+# 4. Conexión a Google Sheets (Múltiples GIDs)
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 try:
-    # Lee la primera hoja por defecto (Tu plan maestro)
     df_plan = conn.read(ttl=10)
 except Exception as e:
     st.error(f"❌ Error leyendo la hoja principal del Plan. Detalle: {e}")
     st.stop()
 
 try:
-    # BYPASS: Usamos el enlace directo con el GID exacto de tu hoja #2
     url_registro = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0/edit?gid=1045035074"
     df_registro = conn.read(spreadsheet=url_registro, ttl=10)
 except Exception as e:
-    st.error(f"❌ Error leyendo el Registro Diario con GID directo. Detalle: {e}")
+    st.error(f"❌ Error leyendo el Registro Diario. Detalle: {e}")
     st.stop()
 
-# 5. Lógica de Datos
+try:
+    url_metricas = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0/edit?gid=125851459"
+    df_metricas = conn.read(spreadsheet=url_metricas, ttl=10)
+except Exception as e:
+    st.error(f"❌ Error leyendo las Métricas Corporales. Detalle: {e}")
+    st.stop()
+
+try:
+    url_restricciones = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0/edit?gid=1711597699"
+    df_restricciones = conn.read(spreadsheet=url_restricciones, ttl=10)
+except Exception as e:
+    st.error(f"❌ Error leyendo el Calendario de Restricciones. Detalle: {e}")
+    st.stop()
+
+# 5. Lógica de Datos - Plan Maestro
 df_plan['Fecha_Inicio'] = pd.to_datetime(df_plan['Fecha_Inicio'], format='%d/%m/%Y', errors='coerce')
 semanas_iniciadas = df_plan[df_plan['Fecha_Inicio'] <= fecha_actual]
 
@@ -94,10 +106,7 @@ df_semana_actual = df_registro[df_registro['ID_Semana'] == id_semana_actual]
 minutos_totales = df_semana_actual['Duración_Real_Min'].sum()
 horas_totales = minutos_totales / 60.0
 
-if volumen_objetivo_hrs > 0:
-    porcentaje_cumplimiento = (horas_totales / volumen_objetivo_hrs) * 100
-else:
-    porcentaje_cumplimiento = 0.0
+porcentaje_cumplimiento = (horas_totales / volumen_objetivo_hrs * 100) if volumen_objetivo_hrs > 0 else 0.0
 
 col4, col5 = st.columns(2)
 
@@ -132,3 +141,58 @@ with col5:
             st.success("✅ Sistema físico en verde: Sin molestias preocupantes.")
     else:
         st.info("No hay datos de salud registrados aún.")
+
+st.divider()
+
+# 7. Módulos V3.0: Métricas Corporales y Calendario de Restricciones
+col6, col7 = st.columns(2)
+
+with col6:
+    st.subheader("⚖️ Métricas Corporales")
+    df_metricas = df_metricas.dropna(subset=['Fecha'])
+    if not df_metricas.empty:
+        df_metricas['Fecha'] = pd.to_datetime(df_metricas['Fecha'], format='%d/%m/%Y', errors='coerce')
+        df_metricas['FC_Reposo'] = pd.to_numeric(df_metricas['FC_Reposo'], errors='coerce')
+        
+        # Gráfica de Frecuencia Cardíaca
+        df_metricas_chart = df_metricas[['Fecha', 'FC_Reposo']].set_index('Fecha').dropna()
+        st.write("**Evolución Frecuencia Cardíaca en Reposo (bpm)**")
+        if not df_metricas_chart.empty:
+            st.line_chart(df_metricas_chart, color=["#00FF00"])
+        else:
+            st.info("Agrega datos numéricos a tu FC_Reposo para ver la tendencia.")
+            
+        with st.expander("Ver tabla completa de medidas"):
+            df_metricas_show = df_metricas.copy()
+            df_metricas_show['Fecha'] = df_metricas_show['Fecha'].dt.strftime('%d/%m/%Y')
+            st.dataframe(df_metricas_show)
+    else:
+        st.info("Aún no has registrado métricas corporales.")
+
+with col7:
+    st.subheader("🚧 Próximas Restricciones")
+    df_restricciones = df_restricciones.dropna(subset=['Fecha'])
+    if not df_restricciones.empty:
+        df_restricciones['Fecha'] = pd.to_datetime(df_restricciones['Fecha'], format='%d/%m/%Y', errors='coerce')
+        
+        # Filtrar solo eventos de hoy en adelante
+        df_futuras = df_restricciones[df_restricciones['Fecha'] >= pd.to_datetime(fecha_actual.date())]
+        
+        if not df_futuras.empty:
+            for index, row in df_futuras.iterrows():
+                fecha_str = row['Fecha'].strftime('%d/%m/%Y')
+                tipo = row.get('Tipo_Restriccion', 'Evento')
+                severidad = row.get('Severidad', 'Baja')
+                desc = row.get('Descripcion', '')
+                
+                # Asignar color visual según severidad
+                if severidad == 'Alta':
+                    st.error(f"**{fecha_str} | {tipo} (Severidad {severidad})**: {desc}")
+                elif severidad == 'Medio':
+                    st.warning(f"**{fecha_str} | {tipo} (Severidad {severidad})**: {desc}")
+                else:
+                    st.info(f"**{fecha_str} | {tipo} (Severidad {severidad})**: {desc}")
+        else:
+            st.success("✅ Ruta despejada: No tienes restricciones o eventos próximos registrados.")
+    else:
+        st.info("Tu calendario de restricciones está vacío.")
