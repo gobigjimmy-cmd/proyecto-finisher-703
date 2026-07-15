@@ -43,33 +43,28 @@ tab_dashboard, tab_registro = st.tabs(["📊 Dashboard de Control", "📝 Regist
 # ==========================================
 with tab_dashboard:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    
-    # URL Base limpia para escritura y lectura general
-    url_base = "https://docs.google.com/spreadsheets/d/1LI8NZtEa9KTZVWf53uAW3y2E4yoT9ToVRHY8ZCbAan0"
 
+    # Lectura de datos por nombre de pestaña (usando la conexión con Service Account)
     try:
-        df_plan = conn.read(ttl=10)
+        df_plan = conn.read(worksheet="Proyecto_FINISHER_703_Panama", ttl=10)
     except Exception as e:
         st.error(f"❌ Error leyendo la hoja principal del Plan. Detalle: {e}")
         st.stop()
 
     try:
-        url_registro = f"{url_base}/edit?gid=1045035074"
-        df_registro = conn.read(spreadsheet=url_registro, ttl=10)
+        df_registro = conn.read(worksheet="Registro_Diario", ttl=10)
     except Exception as e:
         st.error(f"❌ Error leyendo el Registro Diario. Detalle: {e}")
         st.stop()
 
     try:
-        url_metricas = f"{url_base}/edit?gid=125851459"
-        df_metricas = conn.read(spreadsheet=url_metricas, ttl=10)
+        df_metricas = conn.read(worksheet="Metricas_Corporales", ttl=10)
     except Exception as e:
         st.error(f"❌ Error leyendo las Métricas Corporales. Detalle: {e}")
         st.stop()
 
     try:
-        url_restricciones = f"{url_base}/edit?gid=1711597699"
-        df_restricciones = conn.read(spreadsheet=url_restricciones, ttl=10)
+        df_restricciones = conn.read(worksheet="Calendario_Restricciones", ttl=10)
     except Exception as e:
         st.error(f"❌ Error leyendo el Calendario de Restricciones. Detalle: {e}")
         st.stop()
